@@ -1,0 +1,17 @@
+FROM python:3.9-alpine
+
+ARG APP_VERSION
+LABEL version=$APP_VERSION
+
+WORKDIR /app
+
+COPY requirements.txt .
+
+RUN apk add --no-cache postgresql-libs && \
+    apk add --no-cache --virtual .build-deps make cmake gcc musl-dev postgresql-dev && \
+    pip install --no-cache-dir --upgrade -r requirements.txt && \
+    apk --purge del .build-deps
+
+COPY . .
+
+CMD uvicorn main:app --host 0.0.0.0 --port $APP_PORT --reload
