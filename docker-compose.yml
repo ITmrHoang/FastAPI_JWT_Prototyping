@@ -1,0 +1,68 @@
+version: '3'
+services:
+  postgres:
+    image: postgres:16
+    container_name: ${APP_NAME:-HiMoDev}_postgres
+    ports:
+      - "${DATABASE_PORT:-6500}:5432/tcp"
+    restart: always
+    env_file:
+      - ./.env
+    networks:
+      - postgres
+    hostname: postgres #dùng khi kết nối khi run app với docker còn không cần dùng DB_HOST cái này là DB_HOSTNAME
+    volumes:
+      - db:/var/lib/postgresql/data
+      # - ./database:/var/lib/postgresql/data
+  pgadmin:
+    image: dpage/pgadmin4:8.4
+    container_name: ${APP_NAME:-HiMoDev}_pgadmin4
+    depends_on:
+      - postgres
+    ports:
+      - "${PGADMIN_PORT:-5666}:80"
+    env_file:
+      - ./.env
+    networks:
+      - postgres
+    hostname: pgadmin
+    restart: unless-stopped
+    volumes:
+      - "./pgadmin4:/var/lib/pgadmin"
+  app: 
+    image: fastapi_app
+    container_name: ${APP_NAME:-HiMoDev}_fastapi_app
+    build: 
+      context: .
+      dockerfile: DockerFastapi
+      args:
+        APP_VERSION: "1.0"  # Đặt phiên bản cụ thể ở đây
+    env_file:
+      - ./.env
+    depends_on:
+      - postgres
+    ports:
+      # - "${APP_PORT:-8088}:${APP_PORT:-8088}"
+      - "0.0.0.0:${APP_PORT:-8088}:${APP_PORT:-8088}"
+    networks:
+      - postgres
+    volumes:
+      - ./:/app
+    restart: unless-stopped
+    environment:
+      - HIMO=${HIMO:-himodevvn,,}
+      - YOUR_ENV_VARIABLE=your_value
+    # stop_signal: SIGINT
+    # command: sh -c "docker rm -f ${APP_NAME:-HiMoDev}_fastapi_app"
+networks:
+  postgres:
+    driver: bridge
+
+volumes:
+  db:
+    driver: local
+    name:  ${APP_NAME:-himodev,,}_db_volume
+    driver_opts:
+        type: none
+        device: ./database
+        o: bind
