@@ -3,14 +3,20 @@ import argparse
 from models import User
 from core import SessionLocal
 session = SessionLocal()
-session.close()
-def create_user(username, password, email):
+def create_user(username, password, email, is_supper_admin):
     # Tạo một đối tượng User mới
-    new_user = User(username=username, password=password, email=email)
-    print('hashed_password', new_user.salt)
+    new_user = User()
+    new_user.username = username
+    new_user.email = email
+    new_user.hashed_password=password
+    new_user.is_active=True
+    new_user.is_supper_admin=is_supper_admin
+    print('hashed_password', new_user.__dict__)
     # Lưu người dùng vào cơ sở dữ liệu
-    # session.add(new_user)
-    # session.commit()
+    session.add(new_user)
+    session.commit()
+    session.close()
+
 
 if __name__ == "__main__":
     # Tạo một đối tượng ArgumentParser
@@ -28,17 +34,20 @@ if __name__ == "__main__":
     
     if not args.username:
         args.username = input("Enter username: ")
-    # Nếu không có mật khẩu được cung cấp, yêu cầu người dùng nhập
-    if not args.password:
-        args.password = input("Enter password: ")
 
     # Nếu không có mật khẩu được cung cấp, yêu cầu người dùng nhập
     if not args.password:
-        args.password = input("Enter password: ")
+        check = True
+        while(check):
+            password = input("Enter password: ")
+            confirm_password = input("Enter confirm password: ")
+            if(password == confirm_password):
+                args.password = password
+                check = False
 
     # Nếu không có email được cung cấp, yêu cầu người dùng nhập
     if not args.email:
         args.email = input("Enter email: ")
     # Gọi hàm tạo người dùng với tên người dùng, mật khẩu và email đã được cung cấp
         
-    create_user(args.username, args.password, args.email)
+    create_user(args.username, args.password, args.email, args.supperadmin)

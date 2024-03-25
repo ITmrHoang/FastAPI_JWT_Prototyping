@@ -1,3 +1,4 @@
 database
 pgadmin4
-**/__pycache__/** 
+**/__pycache__/**
+*/__pycache__/**
