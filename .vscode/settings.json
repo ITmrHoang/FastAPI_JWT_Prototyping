@@ -1,0 +1,10 @@
+{
+    "cSpell.words": [
+        "fastapi",
+        "fernet",
+        "passlib",
+        "pydantic",
+        "sqlalchemy",
+        "starlette"
+    ]
+}

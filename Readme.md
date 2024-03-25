@@ -1,3 +1,5 @@
+# Using docker-compose
+  ``` docker compose up -d ```
 # Setup environment
 ## install virtualenv create env
     python -m pip install --user virtualenv

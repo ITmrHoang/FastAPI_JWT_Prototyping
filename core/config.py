@@ -1,8 +1,5 @@
 from pydantic import BaseSettings
-from decouple import config
-from pathlib import Path
 
-BASE_DIR =  Path(__file__).parent.parent
 
 class Settings(BaseSettings):
     DATABASE_PORT: int = 6500

@@ -4,6 +4,8 @@ from sqlalchemy.orm import sessionmaker
 from .config import settings
 from fastapi_utils.guid_type import setup_guids_postgresql
 from sqlalchemy.engine import URL
+from sqlalchemy.orm import Session
+from fastapi import Depends
 
 # POSTGRES_URL = f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOSTNAME}:{settings.DATABASE_PORT}/{settings.POSTGRES_DB}"
 POSTGRES_URL = URL.create(
@@ -59,3 +61,12 @@ def get_db():
         yield db
     finally:
         db.close()
+
+class BaseModelORM():
+    @classmethod
+    def create(cls, name: str, email: str, db: Session = Depends(get_db)):
+        user = cls(name=name, email=email)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user

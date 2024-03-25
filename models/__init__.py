@@ -2,13 +2,14 @@ import os
 import sys
 from importlib import import_module
 BASE_DIR= os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_PATH = os.path.abspath(os.path.join(BASE_DIR, 'models'))
+FOLDER_PATH = os.path.abspath(os.path.dirname(os.path.abspath(__file__)))
 # Thêm đường dẫn của thư mục models vào sys.path
-sys.path.append(MODEL_PATH)
 sys.path.append(BASE_DIR)
+sys.path.append(FOLDER_PATH)
+
 
 # Lấy danh sách tất cả các file trong thư mục models
-model_files = [f[:-3] for f in os.listdir(MODEL_PATH) if f.endswith('.py') and f != '__init__.py']
+model_files = [f[:-3] for f in os.listdir(FOLDER_PATH) if f.endswith('.py') and f != '__init__.py']
 
 # Import tất cả các class model từ các file trong thư mục models
 for model_file in model_files:

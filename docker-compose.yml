@@ -27,6 +27,7 @@ services:
       - postgres
     hostname: pgadmin
     restart: unless-stopped
+    # không cần mount  confict nếu chuyển các máy khác nhau file sẽ tự sinh nếu copy nên xóa pgadmin4 folder
     volumes:
       - "./pgadmin4:/var/lib/pgadmin"
   app: 
