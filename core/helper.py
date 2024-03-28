@@ -2,6 +2,7 @@ from passlib.context import CryptContext
 from .constant import  KEY_CRYPT
 from cryptography.fernet import Fernet
 import base64
+import os
 
 crypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -28,3 +29,14 @@ def encrypt(data):
 def decrypt(encrypted_data):
     decrypted_data = cipher_suite.decrypt(encrypted_data).decode()
     return decrypted_data
+
+
+def get_subdirectories(path, excluded_names=None):
+    # Lấy tất cả các tệp và thư mục trong thư mục hiện tại
+    contents = os.listdir(path)
+    subdirectories = []
+    for item in contents:
+        item_path = os.path.join(path, item)
+        if os.path.isdir(item_path) and item not in excluded_names and not item.startswith('.'):
+            subdirectories.append(item)
+    return subdirectories

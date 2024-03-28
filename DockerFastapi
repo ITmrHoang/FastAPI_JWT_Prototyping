@@ -1,5 +1,5 @@
-FROM python:3.9-alpine
-
+FROM python:alpine3.18 
+#python version 3.12.2
 ARG APP_VERSION
 LABEL version=$APP_VERSION
 
@@ -9,7 +9,8 @@ COPY requirements.txt .
 
 RUN apk add --no-cache postgresql-libs && \
     apk add --no-cache --virtual .build-deps make cmake gcc musl-dev postgresql-dev && \
-    pip install --no-cache-dir --upgrade -r requirements.txt && \
+    pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt && \
     apk --purge del .build-deps
 
 COPY . .
