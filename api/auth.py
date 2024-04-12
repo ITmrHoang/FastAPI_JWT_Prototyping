@@ -5,7 +5,7 @@ from models import User
 from core import get_db, SessionLocal
 from sqlalchemy.orm import Session
 from fastapi.responses import JSONResponse
-from schemas import ResponseAPISchema, UserResponse
+from schemas import ResponseAPISchema, UserResponse, Role
 from utils.responses import ResponseAPI
 from utils import verify_password
 from utils.authentication import create_access_token, create_refresh_token
@@ -26,8 +26,10 @@ router = APIRouter(
 @router.post("/login",  response_model=Token, responses={404: {"model": ResponseAPISchema}})
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
-    user = User.getUserByUsername(form_data.username)
-
+    user = User.getUserLogin(form_data.username)
+    c_roles = user.roles
+    # for role in c_roles:
+    #     print(role.__dict__, type(role))
 
     if user is None:
         return errorResponse(
@@ -41,8 +43,6 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
          return errorResponse(
             message="Incorrect  username or password"
         )
-    
-    print(UserResponse(**user.__dict__))
     return {
         "access_token": 1,
         "refresh_token": 2

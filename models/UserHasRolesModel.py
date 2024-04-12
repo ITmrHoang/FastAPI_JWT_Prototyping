@@ -13,5 +13,5 @@ class UserHasRoles(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'))
     role_id = Column(UUID(as_uuid=True), ForeignKey('roles.id'))
 
-
+    user = relationship("User", back_populates="role_associations", viewonly=True) # nếu cần thêm thông tin từ bảng trung gian có thế viết quan hệ với bảng trung gian
 

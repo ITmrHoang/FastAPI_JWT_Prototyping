@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field, UUID4 as UUID
-from typing import Union, Optional,List
+from pydantic import BaseModel, UUID4 as UUID
+from typing import Union, Optional, List, Annotated
 from datetime import datetime
 from schemas import Role,Permission
 
@@ -47,13 +47,14 @@ class User(BaseModel):
 
 
 class UserResponse(BaseModel):
-    username: str
-    email: Union[str]
+    username: str = None
+    email: Union[str]= None
     # email: Optional[str]  = Field(None)  #  Union[str, None] = None
     is_active: bool = False
     is_supper_admin: bool = False
-    last_login: str
-    created_at: str
-    roles: List[Role] = []
+    last_login: str= None
+    created_at: str= None
+    roles: Annotated[List[Role], "list Role of User"] = []
     permissions: List[Permission] = []
 
+    

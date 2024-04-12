@@ -1,4 +1,4 @@
-from typing import List, Set
+from typing import List, Set, Any
 from sqlalchemy import event, Boolean, Integer, Column, String, DateTime, Text, Float, ForeignKey, Date, Time
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from sqlalchemy.sql.functions import now
@@ -8,11 +8,13 @@ import secrets
 from core import hash as hashPassword,  SessionLocal
 from sqlalchemy.orm import Session
 from fastapi import Depends
+from models.UserHasRolesModel import UserHasRoles
+from models import Role
 
 
-from core.database import Base
+from core.database import Base,BaseORM
 
-class User(Base):
+class User(Base, BaseORM):
     __tablename__ = "users"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -28,7 +30,11 @@ class User(Base):
 
     created_at = Column(DateTime, server_default=now())
 
-    roles: Mapped[List["Role"]] =  relationship("Role",secondary="user_has_roles", back_populates="users") 
+    role_associations : Mapped[List[Any]] = relationship("UserHasRoles",
+        back_populates="user", viewonly=True
+    ) # nếu cần thêm thông tin từ bảng trung gian có thế viết quan hệ với bảng trung gian
+    # many-to-many trực tiếp không qua bảng trung gian
+    roles: Mapped[List["Role"]] =  relationship("Role",secondary="user_has_roles", back_populates="users") #DOCUMENTATION string tên bảng hoặc class cùa table association cũng được
     # roles: Mapped[List["Role"]] =  relationship("Role", back_populates="user") 
     permissions: Mapped[Set["Permission"]] =  relationship("Permission", secondary="user_has_permissions" ,  back_populates="users") 
 
@@ -39,7 +45,6 @@ class User(Base):
     @hashed_password.setter
     def hashed_password(self, plaintext_password):
         # Mã hóa mật khẩu và gán cho _hashed_password
-        print(hashPassword('aaaa'), hashPassword('aaaa'))
         password = hashPassword(plaintext_password+self.salt)
         self._hashed_password = password
 
@@ -62,6 +67,12 @@ class User(Base):
     @classmethod
     def getUserByUsername(cls, username: int, db: Session = SessionLocal()):
         user = db.query(cls).filter(cls.username == username).first()
+        return user
+    
+    @staticmethod
+    def getUserLogin(username: UUID, db: Session = SessionLocal()):
+        user = db.query(User).\
+                filter(User.username == username).first()
         return user
     
 @event.listens_for(User, 'init')

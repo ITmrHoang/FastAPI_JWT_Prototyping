@@ -120,10 +120,32 @@ or dùng network
 
 1. khi connect các container trong docker bằng network docker các container sẽ liên kết với nhau bằng network trong mạng ảo docker không phải host nên dùng port trong docker không phải port bind ra ngoài
 
+### các từ khóa highlighting
+    TODO: Đánh dấu những nhiệm vụ cần hoàn thành sau này.
+    FIXME: Đánh dấu những nơi cần sửa lỗi hoặc cải thiện.
+    NOTE: Đánh dấu các lưu ý quan trọng, giải thích hoặc hướng dẫn.
+    HACK: Đánh dấu các đoạn mã tạm thời hoặc giải pháp tạm thời.
+    XXX: Đánh dấu các vấn đề cần xem xét hoặc sửa chữa.
+    BUG: Đánh dấu các đoạn mã có lỗi.
+    FIX: Đánh dấu các đoạn mã cần được sửa lỗi.
+    IMPROVE: Đánh dấu các đoạn mã cần được cải thiện.
+    OPTIMIZE: Đánh dấu các đoạn mã cần được tối ưu hóa.
+    REFACTOR: Đánh dấu các đoạn mã cần được tái cấu trúc.
+    REVIEW: Đánh dấu các đoạn mã cần được xem xét.
+    WIP (Work in Progress): Đánh dấu các đoạn mã đang được phát triển hoặc đang được hoàn thiện.
+    DEPRECATED: Đánh dấu các đoạn mã đã lỗi thời và không nên sử dụng nữa.
+    INFO: Đánh dấu các chú thích cung cấp thông tin bổ sung hoặc giải thích về mã.
+    QUESTION: Đánh dấu các chú thích đặt câu hỏi hoặc yêu cầu phản hồi.
+    EXAMPLE: Đánh dấu các chú thích chứa ví dụ minh họa.
+    WARNING: Đánh dấu các chú thích cảnh báo về các vấn đề tiềm ẩn hoặc rủi ro.
+    PERFORMANCE: Đánh dấu các chú thích liên quan đến hiệu suất của mã.
+    CONFIG: Đánh dấu các chú thích liên quan đến cấu hình của ứng dụng hoặc hệ thống.
+    DOCUMENTATION: Đánh dấu các chú thích liên quan đến tài liệu hoặc hướng dẫn.
 # other
 
 . clear cache python **pycache**
 `find . -type d -name  "__pycache__" -exec rm -r {} +`
+
 
 ## dynamic import model and class trong folder models
 
@@ -177,7 +199,7 @@ def get_path_module(directory):
     path_list = []
     for root, dirs, files in os.walk(directory):
         base_name = os.path.basename(root)
-        if base_name == "__pycache__": continue 
+        if base_name == "__pycache__": continue
         file_name_list = [ f for f in files if f.endswith('.py') and f != '__init__.py']
         for f in file_name_list:
             path = os.path.join(root,f)
@@ -207,6 +229,66 @@ for module_path in path_module:
     globals().update({cls.__name__: cls for cls in classes if cls.__module__ == module.__name__})
 
 
+```
+
+### dyamic import class and funtion of moudle
+
+Cả hai cách globals().update({func_name: my_function}) và setattr(sys.modules[__name__], function_name, new_function) đều được sử dụng để thêm hoặc cập nhật một biến hoặc một hàm trong không gian tên toàn cục của Python. Tuy nhiên, cách tiếp cận này có một số điểm khác biệt như sau:
+
+globals().update({func_name: my_function}):
+
+Sử dụng globals() để truy cập vào không gian tên toàn cục của chương trình.
+update() được sử dụng để thêm hoặc cập nhật một hoặc nhiều cặp key-value trong từ điển globals.
+func_name là tên biến hoặc hàm mới bạn muốn thêm hoặc cập nhật.
+my_function là hàm hoặc giá trị mới mà bạn muốn gán cho biến có tên func_name.
+setattr(sys.modules[__name__], function_name, new_function):
+
+sys.modules[__name__] được sử dụng để truy cập vào module hiện tại mà chương trình đang chạy.
+setattr() được sử dụng để thiết lập một thuộc tính của một đối tượng.
+function_name là tên biến hoặc hàm mới bạn muốn thêm hoặc cập nhật trong module hiện tại.
+new_function là hàm hoặc giá trị mới mà bạn muốn gán cho biến có tên function_name.
+Tóm lại, cả hai cách đều có thể được sử dụng để thêm hoặc cập nhật biến hoặc hàm trong không gian tên toàn cục, nhưng cách thức thực hiện và ngữ cảnh sử dụng có thể khác nhau.
+
+``` 
+    #TODO import dyamic functions in module
+import os
+import sys
+from importlib import import_module
+import inspect
+
+# Đường dẫn đến thư mục chứa các module
+MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Thêm đường dẫn của thư mục module vào sys.path
+sys.path.append(MODULE_DIR)
+
+# Lấy danh sách tất cả các file trong thư mục của module
+module_files = [f[:-3] for f in os.listdir(MODULE_DIR) if f.endswith('.py') and f != '__init__.py']
+
+# Import tất cả các hàm từ các file trong thư mục module
+for _module_file in module_files:
+    _module = import_module(f'{_module_file}')
+    # module_functions = [func for func in dir(module) if callable(getattr(module, func)) and not func.startswith("__")]
+    # for func_name in module_functions:
+    #     func = getattr(module, func_name)
+    #     print(f"Imported function '{func_name}' from module '{module_file}'")
+    _module_functions = []
+    for _func_name in dir(_module):
+        if callable(getattr(_module, _func_name)) and not _func_name.startswith("__"):
+            _i_func = getattr(_module, _func_name)
+            # kiểm tra chúng trong module hiện tại
+            if _module.__name__ == _i_func.__module__:
+                if  isinstance(_i_func, type):
+                   globals().update({_func_name: _i_func})
+                if inspect.isfunction(_i_func):
+                    # Đặt hàm mới vào một đối tượng có thể gọi
+                    setattr(sys.modules[__name__], _func_name, _i_func)
+                # # Gọi hàm mới
+                # function = getattr(sys.modules[__name__], func_name)
+                # function()
+                # NOTE global có thể import funtion và class nên không cần import class dymaic 
+                # print(func_name, module.__name__ + "name modle  " +  i_func.__module__ , type(i_func), sep=' ---   ')
+     
 ```
 
 ## dyamic import file route
@@ -255,7 +337,33 @@ for directory in subdirectories:
 
 ```
 
-## custome orm model
+
+## serialization model
+
+```
+    # Truy vấn ORM model và chuyển đổi kết quả thành từ điển
+    def orm_to_dict(orm_instance):
+        result = {}
+        for column in orm_instance.__table__.columns:
+            result[column.name] = getattr(orm_instance, column.name)
+        return result
+```
+
+```
+    class User(Base):
+        __tablename__ = 'users'
+
+        id = Column(Integer, primary_key=True)
+        username = Column(String)
+        email = Column(String)
+
+        def to_dict(self):
+            return {column.name: getattr(self, column.name) for column in self.__table__.columns}
+
+```
+
+
+## customize orm model
 
 base
 
@@ -424,4 +532,4 @@ if __name__ == "__main__":
            print("Deleted user:", deleted_user.id, deleted_user.name, deleted_user.email)
        except Exception as e:
            print(f"An error occurred: {e}")
-````
+```

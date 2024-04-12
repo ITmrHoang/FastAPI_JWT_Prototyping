@@ -6,7 +6,8 @@ from fastapi_utils.guid_type import setup_guids_postgresql
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import Session
 from fastapi import Depends
-
+from typing import Any, Dict, TypeVar, Generic
+from uuid import UUID
 # POSTGRES_URL = f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOSTNAME}:{settings.DATABASE_PORT}/{settings.POSTGRES_DB}"
 POSTGRES_URL = URL.create(
     "postgresql+psycopg2",
@@ -21,7 +22,8 @@ POSTGRES_URL = URL.create(
 engine = create_engine(
     POSTGRES_URL, echo=True
 )
-
+with engine.connect() as connection:
+    connection.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
 # dùng trục tiếp session engine
 
 # session = Session(engine)
@@ -62,11 +64,107 @@ def get_db():
     finally:
         db.close()
 
-class BaseModelORM():
+
+
+# có thể tạo BaseORM module để các model kế thừa như sau
+class BaseORM:
     @classmethod
-    def create(cls, name: str, email: str, db: Session = Depends(get_db)):
-        user = cls(name=name, email=email)
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        return user
+    def get(cls, id: int | str, db: Session = SessionLocal()):
+        #NOTE không cần kiểm tra cột id là uuid và chuyển thành kiểu tương ứng vì SQLAlchemy tự động chuyển đổi kiểu dữ liệu nếu cột đó là UUID
+        # from sqlalchemy.dialects.postgresql import UUID
+        # import uuid
+        # if isinstance(cls.id.type , UUID):
+        # id = uuid.UUID(id)
+
+        instance = db.query(cls).filter(cls.id == id).first()
+        return instance
+    @classmethod 
+    def create (cls, db: Session = next(get_db()), **kwargs: Dict[str, Any]):# cách 1 , Session= SessionLocal() # cách 2 
+        try:
+            obj = cls(**kwargs)
+            db.add(obj)
+            db.commit()
+            db.refresh(obj)
+            return obj
+        except:
+            db.close()
+    @classmethod
+    def get(cls, id: int, db: Session = next(get_db())):
+       return db.query(cls).filter(cls.id == id).first()      
+    def update(self, db: Session = next(get_db()), **kwargs: Dict[str, Any]):
+       for attr, value in kwargs.items():
+           setattr(self, attr, value)
+       db.add(self)
+       db.commit()
+       db.refresh(self)
+       return self
+    def delete(self, db: Session):
+       db.delete(self)
+       db.commit()
+       return self
+    def to_dict(self):
+            return {column.name: getattr(self, column.name) for column in self.__table__.columns}
+
+
+def orm_to_dict(orm_instance):
+    result = {}
+    for column in orm_instance.__table__.columns:
+        result[column.name] = getattr(orm_instance, column.name)
+    return result
+
+ModelType = TypeVar("ModelType", bound=Base)
+class BaseRepository(Generic[ModelType]):
+    model = None
+    def __init__(self, db: Session = next(get_db())):
+        self.db = db
+    
+    def get(self, id: int | UUID):
+        try:
+            return self.db.query(self.model).filter(self.model.id == id).first()
+        except:
+            self.db.close()
+
+    # def create(cls, name: str, email: str, db: Session = SessionLocal() ''' next(get_db() # cách 2 '''): # cách 1
+    def create(self, **kwargs : Dict[str, Any]) -> ModelType:
+        try:
+            obj = self.model(**kwargs)
+            self.db.add(obj)
+            self.db.commit()
+            self.db.refresh(obj)
+            return obj
+        except:
+            self.db.close()
+            raise Exception("Creagte failed.")
+
+    def _update(self, obj: ModelType, **kwargs: Dict[str, Any]) -> ModelType:
+        try:
+            if obj is None:
+                raise ValueError("Do not find instance of ${ModelType.__name__}")
+            for key, value in kwargs.items():
+                setattr(obj, key, value)
+            self.db.commit()
+            self.db.refresh(obj)
+            return obj
+        except:
+            self.db.close()
+            raise Exception("Error occurred during update.")
+
+    def update(self, id= int| UUID| str, **kwargs: Dict[str, Any]) -> ModelType:
+        obj = self.get(id)
+        return self._update(obj, **kwargs)
+    def _delete(self, obj: ModelType) -> None:
+        try:
+            if obj is None:
+                raise ValueError("Do not find instance of ${ModelType.__name__}")
+            self.db.delete(obj)
+            self.db.commit()
+            return True
+        except:
+            self.db.close()
+            return False
+    def delete(self, id= int| UUID| str) -> ModelType:
+        obj = self.get(id)
+        return self._delete(obj)
+
+    def to_dict(self, obj):
+            return {column.name: getattr(obj, column.name) for column in self.model.__table__.columns}

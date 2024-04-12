@@ -1,9 +1,11 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from schemas.UserSchema import UserResponse
+from schemas import Token, UserResponse
+
 router = APIRouter(
     prefix="/users",
-    tags=["users"],
+    # tags=["users"],
+    # dependencies=[Depends(oauth2_scheme)],
     responses={404: {"description": "page not found"}},
 )
 

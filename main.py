@@ -35,7 +35,7 @@ app.include_router(auth_router.router)
 
 ROUTER_DIR = os.path.join(BASE_DIR, 'api')
 
-excluded_folder = ["__pycache__"]
+excluded_folder = ["__pycache__", "dependencies", "middleware"]
 
 LIST_PATH_ROUTE = get_subdirectories(ROUTER_DIR, excluded_folder)
 
@@ -43,14 +43,23 @@ LIST_PATH_ROUTE = get_subdirectories(ROUTER_DIR, excluded_folder)
 for folder in LIST_PATH_ROUTE:
     path_version = os.path.join(ROUTER_DIR,folder)
     print(path_version)
-# # # Duyệt qua các file trong thư mục
-#     for file_name in os.listdir(path_version):
-#         # Kiểm tra nếu là file Python
-#         if file_name.endswith(".py"):
-#             # Import module và thêm router vào ứng dụng chính
-#             module_name = f"api.{folder}.{file_name[:-3]}"  # Loại bỏ phần mở rộng .py
-#             module = __import__(module_name, fromlist=["router"])
-#             app.include_router(module.router, prefix=f"/{folder}/{file_name[:-3]}")
+# # Duyệt qua các file trong thư mục
+    for file_name in os.listdir(path_version):
+        # Kiểm tra nếu là file Python
+        if file_name.endswith(".py"):
+            try:
+#               # Import module và thêm router vào ứng dụng chính
+                module_name = f"api.{folder}.{file_name[:-3]}"  # Loại bỏ phần mở rộng .py
+                module = __import__(module_name, fromlist=["router"])
+                if hasattr(module, "router"):
+                    # Module chứa router, bạn có thể truy cập nó bình thường có thể đặt prefix tại đây hoặc bỏ cài trong router nếu để cả 2 sẽ concat prefix
+                    app.include_router(module.router, prefix=f"/{folder}/{file_name[:-3]}")
+                else:
+                    # Module không chứa router, xử lý tùy ý
+                    print(f"Không tìm thấy router trong module: {module_name}")
+            except: 
+                print(f" có lỗi khi import router file: {file_name}")
+           
 
 origins = [
     "*",
@@ -69,17 +78,16 @@ app.add_middleware(
 def read_root():
     return {"Hello": "Worlds1"}
 
-
 # @app.get("/items/{item_id}")
 # def read_item(item_id: int, q: Union[str, None] = None):
 #     return {"item_id": item_id, "q": q}
 
-@app.get("/items/{item_id}")
-async def read_items(
-    item_id: int = Path(title="The ID of the item to get"),
-    q: Union[str, None] = Query(default=None, alias="item-query"),
-):
-    results = {"item_id": item_id}
-    if q:
-        results.update({"q": q})
-    return results
+# @app.get("/items/{item_id}")
+# async def read_items(
+#     item_id: int = Path(title="The ID of the item to get"),
+#     q: Union[str, None] = Query(default=None, alias="item-query"),
+# ):
+#     results = {"item_id": item_id}
+#     if q:
+#         results.update({"q": q})
+#     return results
