@@ -1,6 +1,6 @@
 from typing import Union
 
-from fastapi import FastAPI, Query, Path, Request, Body, Response
+from fastapi import FastAPI, Query, Path, Request, Body, Response, Form
 from core.config import settings
 from fastapi.middleware.cors import CORSMiddleware
 from core import constant, get_subdirectories, BASE_DIR
@@ -57,8 +57,8 @@ for folder in LIST_PATH_ROUTE:
                 else:
                     # Module không chứa router, xử lý tùy ý
                     print(f"Không tìm thấy router trong module: {module_name}")
-            except: 
-                print(f" có lỗi khi import router file: {file_name}")
+            except Exception as e: 
+                print(f"error import router file in {file_name}: \n {e}")
            
 
 origins = [
@@ -76,7 +76,14 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {"Hello": "Worlds1"}
+    return {
+        "infor": "FastAPI_JWT_Prototyping",
+        "createby": "HiModev",
+        "github": "https://github.com/ITmrHoang/FastAPI_JWT_Prototyping.git",
+        "contact": "itmrhoang@gmail.com",
+        "phone": "0582625538",
+        "donate": ""
+        }
 
 # @app.get("/items/{item_id}")
 # def read_item(item_id: int, q: Union[str, None] = None):
@@ -85,9 +92,9 @@ def read_root():
 # @app.get("/items/{item_id}")
 # async def read_items(
 #     item_id: int = Path(title="The ID of the item to get"),
-#     q: Union[str, None] = Query(default=None, alias="item-query"),
+#     q: Union[str, None] =  Body(default=None, alias="item-query"),
 # ):
 #     results = {"item_id": item_id}
 #     if q:
-#         results.update({"q": q})
+#         results.update({"q": str(q)})
 #     return results

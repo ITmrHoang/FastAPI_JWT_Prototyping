@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, UUID4 as UUID
 from typing import Union, Optional,Annotated, List
 from datetime import datetime
-from schemas.PermissionSchema import Permission
+from schemas.PermissionSchemas import Permission
 
 class Role(BaseModel):
     id: Union[UUID]

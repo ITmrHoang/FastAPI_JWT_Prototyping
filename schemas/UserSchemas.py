@@ -1,4 +1,4 @@
-from pydantic import BaseModel, UUID4 as UUID
+from pydantic import BaseModel, UUID4 as UUID, validator
 from typing import Union, Optional, List, Annotated
 from datetime import datetime
 from schemas import Role,Permission
@@ -46,15 +46,16 @@ class User(BaseModel):
         orm_mode = True
 
 
-class UserResponse(BaseModel):
+class UserDataToken(BaseModel):
     username: str = None
     email: Union[str]= None
     # email: Optional[str]  = Field(None)  #  Union[str, None] = None
     is_active: bool = False
     is_supper_admin: bool = False
-    last_login: str= None
-    created_at: str= None
-    roles: Annotated[List[Role], "list Role of User"] = []
-    permissions: List[Permission] = []
+    has_roles: List[str] = []
+    has_permissions: List[str] = []
+
+    class Config:
+        orm_mode = True
 
     

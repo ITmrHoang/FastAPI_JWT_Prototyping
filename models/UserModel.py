@@ -71,10 +71,39 @@ class User(Base, BaseORM):
     
     @staticmethod
     def getUserLogin(username: UUID, db: Session = SessionLocal()):
-        user = db.query(User).\
+        _user = db.query(User).\
                 filter(User.username == username).first()
+        has_roles = set()
+        has_permissions = set()
+        user = _user.to_dict()
+        for role in _user.roles:
+            has_roles.add(role.name)
+            for permission in role.permissions:
+                has_permissions.add(permission.name)
+        
+        for permission in _user.permissions:
+            has_permissions.add(permission.name)
+        user.update({'hashed_password': _user.hashed_password})
+        user.update({'has_roles': list(has_roles)})
+        user.update({'has_permissions': list(has_permissions)})
         return user
-    
+    def getJson(self):
+        # return super().getJson()
+        has_roles = set()
+        has_permissions = set()
+        user = self.to_dict(excludes= ['hashed_password', 'salt'])
+        # del user['hashed_password']
+        # del user['salt']
+        for role in self.roles:
+            has_roles.add(role.name)
+            for permission in role.permissions:
+                has_permissions.add(permission.name)
+        
+        for permission in self.permissions:
+            has_permissions.add(permission.name)
+        user.update({'has_roles': list(has_roles)})
+        user.update({'has_permissions': list(has_permissions)})
+        return user
 @event.listens_for(User, 'init')
 def generate_salt_init( target, mapper, connection):
     if not hasattr(target, 'salt') or target.salt is None:

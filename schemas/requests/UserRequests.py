@@ -10,4 +10,4 @@ class CreateUserRequest(BaseModel):
     roles: List[Role] = []
     permissions: List[Permission] = []
 
-    
+
