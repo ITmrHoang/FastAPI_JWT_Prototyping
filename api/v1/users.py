@@ -1,10 +1,19 @@
-from fastapi import APIRouter, Depends, Security
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from schemas import UserResponse, ResponseAPISchema
+from fastapi import APIRouter, Depends, Security, Form, Body, UploadFile, Query, File
+from fastapi.responses import JSONResponse
+
+from schemas import UserResponse, CreateUserRequest, AssignPermissionRequest, AssignRoleRequest
 from schemas.ResponseSchemas import ResponseData, ResponsePagination
-from core.database import oauth2_scheme
+from core.database import oauth2_scheme, get_global_request_db
+from utils import get_token_info
 from models.UserModel import User
+from typing import Annotated, Optional, List
 # from api.dependencies import check_header_has_authorization
+from core import ResponseException
+from services.permission_service import PermissionService
+from services.role_service import RoleService
+from core import ResponseException as RException
+
+ResponseException._filename = __file__
 
 router = APIRouter(
     # prefix="/users",
@@ -13,11 +22,47 @@ router = APIRouter(
     responses={404: {"description": "page not found"}},
 )
 
-@router.get("/")
-async def read_users(page: int | None = 1, page_size: int | None = 10):
-    data = User.search()
-    return data
-    # return ResponsePagination(data=data)
-# @router.post("/", summary="Create a new user", response_model=UserResponse)
-# async def create_user(): 
-#     return {"message": "Create user"}
+@router.get("/", response_model=ResponseData)
+async def read_users(page: Optional[int] = None, page_size: Optional[int] =None):
+    if page is not None and page_size is not None:
+        data, count = User.search(page=page, page_size=page_size)
+        return ResponsePagination(data=data, total_count=count)
+    else:
+        data = User.search()
+    return ResponseData(data=data)
+    
+@router.post("/assign-permission", response_model=ResponseData)
+async def user_assign_permission( form: AssignPermissionRequest):
+    user = User.get_by_username(form.user, get_global_request_db())
+    if user is None:
+        raise ResponseException('Dont have a user matching')
+    permisions = PermissionService().whereIn('name', form.permissions).all()
+   
+    if permisions is None or len(permisions) == 0:
+        raise ResponseException('Dont have a permision')
+    else:
+        user.clear_permissions()
+        user.assign_permission(permisions)
+    return ResponseData(data=user.getJson())
+
+@router.post("/assign-role", response_model=ResponseData)
+async def user_assign_permission( form: AssignRoleRequest):
+    user = User.get_by_username(form.user, get_global_request_db())
+    if user is None:
+        raise ResponseException('Dont have a user matching')
+    role = RoleService().whereIn('name', form.role).all()
+   
+    if role is None or len(role) == 0:
+        raise ResponseException('Dont have a permision')
+    else:
+        user.assign_role(role)
+    return ResponseData(data=user.getJson())
+
+
+@router.post("/", summary="Create a new user", response_model=ResponseData)
+@router.post("/register", summary="register", response_model=ResponseData)
+async def create_user(user: Annotated[CreateUserRequest, str]): 
+    user_dict = user.dict()
+    iuser  = User.create(**user_dict)
+
+    return ResponseData(data=iuser.getJson())

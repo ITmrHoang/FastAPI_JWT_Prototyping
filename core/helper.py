@@ -1,7 +1,6 @@
 from passlib.context import CryptContext
 from .constant import  KEY_CRYPT
 from cryptography.fernet import Fernet
-import base64
 import os
 
 crypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

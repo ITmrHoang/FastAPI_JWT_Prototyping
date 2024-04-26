@@ -21,7 +21,7 @@ T = TypeVar('T', str, list, dict, BaseModel)
 
 
 class ResponseData(BaseModel, Generic[T]):
-    data: T
+    data: Optional[T]
     status: Optional[int] = 200
     error: Optional[Any] = None
     def int(self, data:T = None, status=200, error=None):
@@ -32,6 +32,7 @@ class ResponseData(BaseModel, Generic[T]):
 class ResponsePagination(ResponseData):
     page: int = 1
     page_size: int = 10
+    total_count: int = 0
 
 
 # Sử dụng kiểu dữ liệu của User cho trường data của ResponseData

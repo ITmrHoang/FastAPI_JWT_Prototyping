@@ -12,6 +12,8 @@ from utils.authentication import create_access_token, create_refresh_token
 
 from utils import errorResponse, susscessResponse
 
+from core import ResponseException
+
 
 
 from schemas import Token

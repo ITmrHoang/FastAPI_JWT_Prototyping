@@ -7,6 +7,9 @@ from core import constant, get_subdirectories, BASE_DIR
 from api import auth as auth_router
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError, ResponseValidationError
+from core import ResponseException
+from core.database import manage_global_session
+
 
 # load env in file .env
 import os 
@@ -19,15 +22,40 @@ load_dotenv()
 app = FastAPI(root_path="/api",title="VSIEM", summary="create by HiMoDev", openapi_url='/openapi.json')
 
 # Middleware to handle validation errors
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    return JSONResponse(status_code=400, content={"detail": "Validation error",
-                                                   "data": exc._errors})
+# @app.exception_handler(ResponseValidationError)
+# async def response_validation_exception_handler(request: Request, exc: ResponseValidationError):
+#     return JSONResponse(status_code=400, content={
+#         "status": 0,
+#         "detail": "Invalid data, please check again.",
+#         "message": "Invalid data, please check again.",
+#         "data": exc._errors})
+@app.exception_handler(ResponseException)
+async def response_exception_handler(request, exc : ResponseException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "status": 0, 
+            "detail": exc.detail, 
+            "error": str(exc),
+            "message": "Have error in server, try again later"}
+    )
 
-@app.exception_handler(ResponseValidationError)
-async def response_validation_exception_handler(request: Request, exc: ResponseValidationError):
-    return JSONResponse(status_code=400, content={"detail": "Response validation error",
-                                                  "data": exc._errors})
+
+# # Tạo một middleware để xử lý các exception
+# @app.exception_handler(RequestValidationError)
+# async def validation_exception_handler(request: Request, exc: RequestValidationError):
+#     # Tạo một JSONResponse tùy chỉnh với mã trạng thái và thông điệp lỗi
+#     return JSONResponse(status_code=400, content={"message": "Validation error", "details": exc.errors()})
+
+# def response_exception_handler(request, exc):
+#     return JSONResponse(
+#         status_code=exc.status_code,
+#         content={"detail": exc.detail}
+#     )
+
+# # Đăng ký middleware cho ứng dụng FastAPI
+# app.add_exception_handler(ResponseException, response_exception_handler)
+
 
 # app.include_router(auth_router)
 # auto import route in api 
@@ -73,6 +101,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Thêm middleware vào ứng dụng FastAPI
+app.middleware("http")(manage_global_session)
 
 @app.get("/")
 def read_root():

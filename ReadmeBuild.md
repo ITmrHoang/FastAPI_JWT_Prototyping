@@ -533,3 +533,26 @@ if __name__ == "__main__":
        except Exception as e:
            print(f"An error occurred: {e}")
 ```
+
+# OPTIMIZE
+## Session in baseORM or model 
+
+Dùng chung session trong nhiều lần gọi có thể gây ra một số vấn đề tiềm ẩn:
+1. Nguy cơ deadlock: Trong một số trường hợp, sử dụng cùng một session trong nhiều lần gọi có thể dẫn đến tình trạng deadlock, đặc biệt khi có nhiều luồng cùng truy cập vào cơ sở dữ liệu.
+2. Nguy cơ ghi đè dữ liệu: Nếu một session đang chứa các thay đổi chưa được lưu và được sử dụng lại trong một lần gọi khác mà không gọi commit, thì có thể ghi đè dữ liệu đã được thay đổi mà chưa được lưu trữ.
+3. Quản lý tài nguyên không hiệu quả: Sử dụng session quá lâu có thể dẫn đến việc chiếm dụng tài nguyên trong cơ sở dữ liệu mà không được giải phóng kịp thời.
+giải pháp sử dụng repository hoặc check nếu db = None khởi tạo session trong hàm không phải giá trị default
+trừ những models nào cần cache hoặc dơn luoogn chung session thì có thể dùng
+
+ ```@classmethod 
+    def create (cls, db: Session=SessionLocal(), **kwargs: Dict[str, Any]):# cách 1 , Session= SessionLocal() # cách 2 next(get_db()) dùng 2 cách này tất cả các lần gọi hàm này thực thi statemnt đều chung 1 session
+
+    valid_fields = vars(cls).keys()  # Lấy tất cả các trường của lớp
+    for key in kwargs.keys():
+        if key not in valid_fields:
+            raise ValueError(f"Invalid field '{key}' in kwargs")
+ ````    
+
+# Note python
+vars(class): trả về field và method của class con và deffault của class không chuwsac las định nghĩa ở lớp cha
+dir(classs): trả về cả field và method class đó có và kế thừa

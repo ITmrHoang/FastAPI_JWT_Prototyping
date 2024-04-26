@@ -1,4 +1,4 @@
-from typing import List, Set, Any
+from typing import List, Set, Any, Dict
 from sqlalchemy import event, Boolean, Integer, Column, String, DateTime, Text, Float, ForeignKey, Date, Time
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from sqlalchemy.sql.functions import now
@@ -7,9 +7,10 @@ from uuid import uuid4
 import secrets
 from core import hash as hashPassword,  SessionLocal
 from sqlalchemy.orm import Session
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from models.UserHasRolesModel import UserHasRoles
-from models import Role
+from models import Role, Permission
+from core import ResponseException
 
 
 from core.database import Base,BaseORM
@@ -73,6 +74,9 @@ class User(Base, BaseORM):
     def getUserLogin(username: UUID, db: Session = SessionLocal()):
         _user = db.query(User).\
                 filter(User.username == username).first()
+        if _user is None:
+            return None
+        
         has_roles = set()
         has_permissions = set()
         user = _user.to_dict()
@@ -104,6 +108,66 @@ class User(Base, BaseORM):
         user.update({'has_roles': list(has_roles)})
         user.update({'has_permissions': list(has_permissions)})
         return user
+# TODO tối ưu assign via list or tuple 
+    def assign_role(self, role: Role | list| tuple):
+        if isinstance(role, Role):
+            self.roles.append(role)
+        elif isinstance(role, list):
+            self.roles.extend(role)
+    def assign_roles(self, roles: list):
+        for role in roles:
+            self.assign_role(role)
+    
+    def clear_roles(self):
+      self.roles.clear()
+    def remove_role(self, role: Role):
+        # Lấy một đối tượng con
+        # child_object = parent_object.children[0]
+        # # Xóa đối tượng con khỏi cơ sở dữ liệu và mối quan hệ
+        # session.delete(child_object)
+        # Xóa đối tượng con khỏi mối quan hệ
+        self.roles.remove(role)
+
+    def assign_permission(self, permission: Permission | list | tuple):
+        print(permission)
+        if isinstance(permission, Permission):
+            self.permissions.append(permission)
+        elif isinstance(permission, list) or  isinstance(permission, tuple):
+            for p in permission:
+                self.permissions.append(p)
+
+    def assign_permissions(self, permissions: list):
+        for permission in permissions:
+            self.assign_permission(permission)
+    
+    def clear_permissions(self):
+      self.permissions.clear()
+    def remove_permission(self, permission: Permission):
+        self.permissions.remove(permission)
+
+    @classmethod 
+    def create (cls, db: Session=SessionLocal(), **kwargs: Dict[str, Any]):
+        _password = kwargs.pop('password')
+        _password_confirmation = kwargs.pop('password_confirmation')
+        valid_kwargs = {k: v for k, v in kwargs.items() if k in  [
+                     attr for attr in vars(cls) \
+                     if not attr.startswith("_") and not callable(getattr(cls, attr))]
+        }
+        if(_password == _password_confirmation):
+            valid_kwargs['hashed_password'] = _password
+        else:
+             raise ResponseException(
+                "password confirmation not matching the password"
+            )
+        try:
+            obj = cls(**valid_kwargs)
+            db.add(obj)
+            db.commit()
+            db.refresh(obj)
+            return obj
+        except Exception as er:
+            db.close()
+            raise ResponseException("Create record error {}".format(str(er)))
 @event.listens_for(User, 'init')
 def generate_salt_init( target, mapper, connection):
     if not hasattr(target, 'salt') or target.salt is None:

@@ -5,11 +5,12 @@ from .config import settings
 from fastapi_utils.guid_type import setup_guids_postgresql
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import Session
-from fastapi import Depends
-from typing import Any, Dict, TypeVar, Generic
+from fastapi import Depends, Request
+from typing import Any, Dict, TypeVar, Generic, List,Tuple
 from uuid import UUID
 from fastapi.security import OAuth2PasswordBearer
-import inspect
+from .schema_api import ResponseException
+from sqlalchemy import tuple_
 
 # POSTGRES_URL = f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOSTNAME}:{settings.DATABASE_PORT}/{settings.POSTGRES_DB}"
 POSTGRES_URL = URL.create(
@@ -57,7 +58,81 @@ with engine.connect() as connection:
 setup_guids_postgresql(engine)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-Base = declarative_base()
+BaseCore = declarative_base()
+class Base(BaseCore):
+    __abstract__ = True
+    def to_dict(self, includes= None, excludes= []):
+        attrs = [
+                    attr for attr in dir(self) \
+                    if not attr.startswith("_") and not callable(getattr(self, attr)) \
+                    and (attr != 'metadata') and (attr != 'registry') and attr not in excludes ] \
+                if includes is None else includes 
+        return { column: getattr(self, column) for column in attrs}
+    def getJson(self):
+        item = self.to_dict()
+        return item
+
+_global_db = None
+_global_request_db = None
+def get_global_db():
+    global _global_db
+    try:
+        if _global_db is None:
+            _global_db = SessionLocal()
+        return _global_db
+    except Exception as e:
+        # Xử lý ngoại lệ một cách chính xác
+        print(f"An error occurred while creating the session: {e}")
+        if _global_db:
+            _global_db.close()
+            _global_db  = None
+        raise ResponseException("Session  database errors")
+        # Trong một khối finally, bạn cần đảm bảo rằng session sẽ được đóng nếu có bất kỳ ngoại lệ nào xảy ra
+      
+
+def get_global_request_db():
+    global _global_request_db
+    try:
+        if _global_request_db is None:
+            _global_request_db = SessionLocal()
+        return _global_request_db
+    except Exception as e:
+        # Xử lý ngoại lệ một cách chính xác
+        print(f"An error occurred while creating the session: {e}")
+        if _global_request_db:
+            _global_request_db.close()
+            _global_request_db= None
+        raise ResponseException("Session  database errors")
+        # Trong một khối finally, bạn cần đảm bảo rằng session sẽ được đóng nếu có bất kỳ ngoại lệ nào xảy ra
+
+
+# Middleware để quản lý global session
+async def manage_global_session(request: Request, call_next):
+    global _global_request_db
+    try:
+        # Khởi tạo session mới cho mỗi yêu cầu
+        _global_request_db = get_global_request_db()
+
+        # Thêm session vào state của request để có thể truy cập trong các route handler
+        request.state.db = _global_request_db
+
+        # Tiếp tục xử lý yêu cầu
+        response = await call_next(request)
+        _global_request_db.commit()
+
+        return response
+    except Exception as e:
+        # Xử lý ngoại lệ nếu có
+        print(f"middware session db erros: {e}")
+        raise ResponseException("Middleware session  database errors")
+    finally:
+        # Sau khi xử lý yêu cầu, đóng session và xóa biến global del or gán Nonee
+        if _global_request_db:
+            _global_request_db.close()
+            _global_request_db = None       
+    
+def get_request_db(request: Request):
+    return request.state.db
 
 def get_db():
     db = SessionLocal()
@@ -75,44 +150,80 @@ oauth2_scheme = OAuth2PasswordBearer(
 class BaseORM:
  
     @classmethod
-    def search(cls, page=1, page_size=10, db: Session = next(get_db())):
+    def search(cls, page=None, page_size=None,filters= None, db: Session = next(get_db())) -> List[Any]:
         try:
-            if page < 1:
-                page = 1
-            offset = (page - 1) * page_size
-            instance = db.query(cls).order_by(cls.id).limit(page_size).offset(offset)
-            result = [ item.getJson() for item in instance]  
-            """  getJSon() hàm sẽ gọi tới các cột relastion nên sẽ \
-            get data relastion nếu không có chỉ get các field của model đó không có relationship"""
-            return result
-        except:
-           db.close()
+            query = db.query(cls).order_by(cls.id)
+            data = query.all()
+            if filters:
+                for field, value in filters.items():
+                    query = query.filter(getattr(cls, field) == value)
+            if page is not None and page_size is not None:
+                if page < 1: page = 1
+                total_count = query.count()
+                query = query.offset((page - 1) * page_size).limit(page_size)
+                result = [ item.getJson() for item in query]  
+                """  getJSon() hàm sẽ gọi tới các cột relastion nên sẽ \
+                get data relastion nếu không có chỉ get các field của model đó không có relationship"""
+                return result, total_count
+            else:
+                result = [ item.getJson() for item in query]  
+                """  getJSon() hàm sẽ gọi tới các cột relastion nên sẽ \
+                get data relastion nếu không có chỉ get các field của model đó không có relationship"""
+                return result
+        except Exception as e:
+            db.close()
+            raise ResponseException("Search error {}".format(str(e)))
+
     def getJson(self):
         item = self.to_dict()
         return item
+    
+    # @classmethod
+    # def get(cls, id: int, db: Session = next(get_db())):
+    #    return db.query(cls).filter(cls.id == id).first()     
     @classmethod
-    def get(cls, id: int | str, db: Session = SessionLocal()):
+    def get(cls, id: int | str, db: Session = next(get_db())):
         #NOTE không cần kiểm tra cột id là uuid và chuyển thành kiểu tương ứng vì SQLAlchemy tự động chuyển đổi kiểu dữ liệu nếu cột đó là UUID
         # from sqlalchemy.dialects.postgresql import UUID
         # import uuid
         # if isinstance(cls.id.type , UUID):
         # id = uuid.UUID(id)
-
-        instance = db.query(cls).filter(cls.id == id).first()
-        return instance
-    @classmethod 
-    def create (cls, db: Session = next(get_db()), **kwargs: Dict[str, Any]):# cách 1 , Session= SessionLocal() # cách 2 
         try:
-            obj = cls(**kwargs)
+            instance = db.query(cls).filter(cls.id == id).first()
+            return instance
+        except Exception as er:
+            db.close()
+            raise ResponseException("get user error {}".format(str(er)))
+    @classmethod
+    def get_by_username(cls, username: int | str, db: Session = next(get_db())):
+        #NOTE không cần kiểm tra cột id là uuid và chuyển thành kiểu tương ứng vì SQLAlchemy tự động chuyển đổi kiểu dữ liệu nếu cột đó là UUID
+        # from sqlalchemy.dialects.postgresql import UUID
+        # import uuid
+        # if isinstance(cls.id.type , UUID):
+        # id = uuid.UUID(id)
+        try:
+            instance = db.query(cls).filter(cls.username == username).first()
+            return instance
+        except Exception as er:
+            db.close()
+            raise ResponseException("get user by username error {}".format(str(er)))
+    @classmethod 
+    def create (cls, db: Session=SessionLocal(), **kwargs: Dict[str, Any]):#TODO cách 1 , Session= SessionLocal() # cách 2 next(get_db()) dùng 2 cách này tất cả các lần gọi hàm này thực thi statemnt đều chung 1 session
+        # Lọc kwargs chỉ giữ lại các trường có trong annotations của lớp mô hình
+        valid_kwargs = {k: v for k, v in kwargs.items() if k in  [
+                     attr for attr in vars(cls) \
+                     if not attr.startswith("_") and not callable(getattr(cls, attr))]
+        }
+        try:
+            obj = cls(**valid_kwargs)
             db.add(obj)
             db.commit()
             db.refresh(obj)
             return obj
-        except:
+        except Exception as er:
             db.close()
-    @classmethod
-    def get(cls, id: int, db: Session = next(get_db())):
-       return db.query(cls).filter(cls.id == id).first()      
+            raise ResponseException("Create record error {}".format(str(er)))
+ 
     def update(self, db: Session = next(get_db()), **kwargs: Dict[str, Any]):
        for attr, value in kwargs.items():
            setattr(self, attr, value)
@@ -143,9 +254,20 @@ def orm_to_dict(orm_instance):
 
 ModelType = TypeVar("ModelType", bound=Base)
 class BaseRepository(Generic[ModelType]):
-    model = None
-    def __init__(self, db: Session = next(get_db())):
-        self.db = db
+    model:ModelType = None
+    def __init__(self):
+        self.set_db()
+        self.set_model()
+    
+    def set_model(self):
+        pass
+
+    def get_model(self) -> ModelType:
+        return self.model
+
+    def set_db(self, db = None):
+        if db is None:
+            self.db = get_global_request_db()
     
 
     def get(self, id: int | UUID):
@@ -183,6 +305,7 @@ class BaseRepository(Generic[ModelType]):
     def update(self, id= int| UUID| str, **kwargs: Dict[str, Any]) -> ModelType:
         obj = self.get(id)
         return self._update(obj, **kwargs)
+    
     def _delete(self, obj: ModelType) -> None:
         try:
             if obj is None:
@@ -201,10 +324,31 @@ class BaseRepository(Generic[ModelType]):
             return {column.name: getattr(obj, column.name) for column in self.model.__table__.columns}
 
 class QueryBuilder:
-    def __init__(self, table, db: Session = next(get_db())):
-        self.table = table
-        self.query = db.query(self.table)
-        
+    db=None
+    model = None
+    query = None
+    def __init__(self):
+        self.set_db()
+        self.set_model()
+        self.set_query()
+    
+    def set_model(self):
+        pass
+
+    def set_db(self, db = None):
+        if db is None:
+            self.db = get_global_request_db()
+        else:
+            self.db = db
+    def set_query(self):
+        self.query = self.db.query(self.model)
+
+    def get_db(self):
+        return self.db
+
+    def get_query(self):
+        return self.query
+    
     def filter_by(self, **kwargs):
         if self.query is None:
             raise Exception("No select statement has been called yet.")
@@ -233,6 +377,28 @@ class QueryBuilder:
         if self.query is None:
             raise Exception("No select statement has been called yet.")
         return self.query.all()
-    
+    def whereIn(self, col: str|list|tuple, array: list) -> list[ModelType]:
+        try:
+            
+            if isinstance(col, str):
+                column = getattr(self.model, col)
+                return self.query.filter(column.in_(array))
+            elif isinstance(col, list) or isinstance(col, tuple):
+                columns  = []
+                for c in col:
+                      self.db.expunge(col)
+                      columns.append(getattr(self.model, c))
+                return self.query.filter(tuple_(*columns ).in_(array))
+            else:
+                raise ResponseException("Invalid type for 'col'")
+        except Exception as e:
+            self.db.close()
+            raise ResponseException("Error occurred during whereIn:" + str(e))
+class BaseService(BaseRepository[Generic[ModelType]],QueryBuilder ):
+    def __init__(self):
+    # super().__init__()  # Gọi constructor của BaseRepository
+    # super(QueryBuilder, self).__init__()  # Gọi constructor của QueryBuilder
+       BaseRepository.__init__(self)
+       QueryBuilder.__init__(self)
 # # In ra câu SQL đã tạo
 # print(query.statement)    

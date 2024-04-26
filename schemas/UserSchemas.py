@@ -55,7 +55,11 @@ class UserDataToken(BaseModel):
     has_roles: List[str] = []
     has_permissions: List[str] = []
 
+    def __getitem__(self, key):
+        return self.get(key)
+    def get(self,  filed):
+        return getattr(self, filed)
+
     class Config:
         orm_mode = True
 
-    

@@ -51,6 +51,9 @@ def get_path_module(directory):
 path_module = get_path_module(FOLDER_PATH)
 
 for module_path in path_module:
-    module = import_module(f'{module_path}')
-    classes = [cls for cls in module.__dict__.values() if isinstance(cls, type)]
-    globals().update({cls.__name__: cls for cls in classes if cls.__module__ == module.__name__})
+    try:
+        module = import_module(f'{module_path}')
+        classes = [cls for cls in module.__dict__.values() if isinstance(cls, type)]
+        globals().update({cls.__name__: cls for cls in classes if cls.__module__ == module.__name__})
+    except Exception as e:
+        print(f'load module {__file__} error: - {e}')
