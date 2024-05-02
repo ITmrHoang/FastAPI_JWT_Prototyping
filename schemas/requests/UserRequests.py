@@ -19,3 +19,16 @@ class AssignPermissionRequest(BaseModel):
 class AssignRoleRequest(BaseModel):
     user: str
     roles: List[str]
+
+class UpdateUserRequest(BaseModel):
+    email: Union[str]
+    is_supper_admin: Optional[bool] = False
+    is_active: Optional[bool] = False
+    class Config:
+        schema_extra = {
+            "example": {
+                "email": "abd@example.com",
+                "is_supper_admin": False,
+                "is_active": True,
+            }
+        }

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Security, Form, Body, UploadFile, Query, File
 from fastapi.responses import JSONResponse
 
-from schemas import UserResponse, CreateUserRequest, AssignPermissionRequest, AssignRoleRequest
+from schemas import UserResponse, CreateUserRequest, AssignPermissionRequest, AssignRoleRequest, UpdateUserRequest
 from schemas.ResponseSchemas import ResponseData, ResponsePagination
 from core.database import oauth2_scheme, get_global_request_db
 from utils import get_token_info
@@ -30,7 +30,17 @@ async def read_users(page: Optional[int] = None, page_size: Optional[int] =None)
     else:
         data = User.search()
     return ResponseData(data=data)
-    
+
+@router.get("/{user}", summary="get infor user", response_model=ResponseData)
+async def get_user(user): 
+    iuser = User.get_by_username(user)
+    if iuser is None:
+        try: 
+            iuser  = User.get(user) 
+        except:
+            raise ResponseException('Dont have a user matching')
+    return ResponseData(data=iuser.getJson())
+
 @router.post("/assign-permission", response_model=ResponseData)
 async def user_assign_permission( form: AssignPermissionRequest):
     user = User.get_by_username(form.user, get_global_request_db())
@@ -66,3 +76,31 @@ async def create_user(user: Annotated[CreateUserRequest, str]):
     iuser  = User.create(**user_dict)
 
     return ResponseData(data=iuser.getJson())
+@router.patch("/{user}", summary="update  user", response_model=ResponseData)
+async def patch_user(user: str, form : Annotated[UpdateUserRequest, str], db = Depends(get_global_request_db)): 
+    print('\n\napi', db)
+    iuser = User.get_by_username(user, db)
+    if iuser is None:
+        try: 
+            iuser  = User.get(user, db) 
+        except:
+            iuser = None
+    if iuser is None:
+        raise ResponseException('Dont have a user matching')
+
+    iuser.update(name= 'aaa', rq=form)
+    return ResponseData(data=iuser.getJson())
+
+
+@router.delete("/{user}", summary="get infor user", response_model=ResponseData)
+async def get_user(user, db = Depends(get_global_request_db)): 
+    iuser = User.get_by_username(user, db)
+    if iuser is None:
+        try: 
+            iuser  = User.get(user, db) 
+        except:
+            iuser = None
+    if iuser is None:
+        raise ResponseException('Dont have a user matching')
+    iuser.delete(db)
+    return ResponseData(data="delete user successfully")

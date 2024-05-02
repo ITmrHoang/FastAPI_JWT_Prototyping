@@ -11,6 +11,7 @@ from uuid import UUID
 from fastapi.security import OAuth2PasswordBearer
 from .schema_api import ResponseException
 from sqlalchemy import tuple_
+from fastapi.encoders import jsonable_encoder
 
 # POSTGRES_URL = f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOSTNAME}:{settings.DATABASE_PORT}/{settings.POSTGRES_DB}"
 POSTGRES_URL = URL.create(
@@ -123,8 +124,8 @@ async def manage_global_session(request: Request, call_next):
         return response
     except Exception as e:
         # Xử lý ngoại lệ nếu có
-        print(f"middware session db erros: {e}")
-        raise ResponseException("Middleware session  database errors")
+        print(f"\nlog middware session db erros: {e}")
+        raise ResponseException("Middleware session  database errors: " + str(e))
     finally:
         # Sau khi xử lý yêu cầu, đóng session và xóa biến global del or gán Nonee
         if _global_request_db:
@@ -224,14 +225,24 @@ class BaseORM:
             db.close()
             raise ResponseException("Create record error {}".format(str(er)))
  
-    def update(self, db: Session = next(get_db()), **kwargs: Dict[str, Any]):
-       for attr, value in kwargs.items():
+    def update(self, db: Session = None, rq = None, **kwargs: Dict[str, Any]):
+        if db is None:
+            db = get_global_request_db()
+        if rq is not None:
+            json_data = jsonable_encoder(rq)
+            for attr, value in json_data.items():
+                setattr(self, attr, value)
+
+        for attr, value in kwargs.items():
            setattr(self, attr, value)
-       db.add(self)
-       db.commit()
-       db.refresh(self)
-       return self
-    def delete(self, db: Session):
+
+        db.add(self)
+        db.commit()
+        db.refresh(self)
+        return self
+    def delete(self, db: Session= None):
+       if db is None:
+           db = get_global_request_db()
        db.delete(self)
        db.commit()
        return self
@@ -289,12 +300,19 @@ class BaseRepository(Generic[ModelType]):
             self.db.close()
             raise Exception("Create failed.")
 
-    def _update(self, obj: ModelType, **kwargs: Dict[str, Any]) -> ModelType:
+    def _update(self, obj: ModelType, rq=None, **kwargs: Dict[str, Any]) -> ModelType:
         try:
             if obj is None:
                 raise ValueError("Do not find instance of ${ModelType.__name__}")
-            for key, value in kwargs.items():
-                setattr(obj, key, value)
+
+            if rq is not None:
+                json_data = jsonable_encoder(rq)
+                for attr, value in json_data.items():
+                    setattr(self, attr, value)
+
+            for attr, value in kwargs.items():
+                setattr(self, attr, value)
+
             self.db.commit()
             self.db.refresh(obj)
             return obj
@@ -302,9 +320,9 @@ class BaseRepository(Generic[ModelType]):
             self.db.close()
             raise Exception("Error occurred during update.")
 
-    def update(self, id= int| UUID| str, **kwargs: Dict[str, Any]) -> ModelType:
+    def update(self, id= int| UUID| str, rq = None, **kwargs: Dict[str, Any]) -> ModelType:
         obj = self.get(id)
-        return self._update(obj, **kwargs)
+        return self._update(obj,rq, **kwargs)
     
     def _delete(self, obj: ModelType) -> None:
         try:

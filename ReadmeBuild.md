@@ -4,9 +4,9 @@
 
 # Install package python
 
-## install virtualenv create env
+## install virtualenv / venv create env
 
-    python -m pip install --user virtualenv
+    python -m pip install --user virtualenv 
     python -m virtualenv <name_env>
 
     or
@@ -14,6 +14,12 @@
     pip install virtualenv
     virtualenv --python C:\Path\To\Python\python.exe venv
 
+### active 
+```
+source <name>/bin/activate
+or
+.\env_name\Scripts\activate
+```
 ## package
 
     pip install SQLAlchemy fastapi-utils psycopg2
