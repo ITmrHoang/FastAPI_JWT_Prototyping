@@ -1,6 +1,6 @@
-from typing import Union
+from typing import Union, Dict, Any
 
-from fastapi import FastAPI, Query, Path, Request, Body, Response, Form
+from fastapi import FastAPI, Query, Path, Request, Body, Response, Form, Depends, HTTPException
 from core.config import settings
 from fastapi.middleware.cors import CORSMiddleware
 from core import constant, get_subdirectories, BASE_DIR
@@ -9,6 +9,8 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError, ResponseValidationError
 from core import ResponseException
 from core.database import manage_global_session
+import httpx
+from httpx import BasicAuth
 
 
 # load env in file .env
@@ -102,7 +104,7 @@ app.add_middleware(
 )
 
 # Thêm middleware vào ứng dụng FastAPI
-app.middleware("http")(manage_global_session)
+# app.middleware("http")(manage_global_session)
 
 @app.get("/")
 def read_root():
@@ -114,6 +116,22 @@ def read_root():
         "phone": "0582625538",
         "donate": ""
         }
+
+@app.get("/{indexer}/_search")
+async def elasticSearch(indexer: str| None, request: Request):
+
+    try:
+        # Xác thực cơ bản (Basic Authentication)
+        auth = BasicAuth("admin", "admin")
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get("http://localhost:9200/other-endpoint")
+            response.raise_for_status()  # Raise an exception for non-2xx responses
+            data = response.json()  # Parse the JSON response
+            return data
+    except httpx.HTTPError as e:
+        # Handle HTTP errors, if any
+        raise HTTPException(status_code=500, detail=str(e))
 
 # @app.get("/items/{item_id}")
 # def read_item(item_id: int, q: Union[str, None] = None):

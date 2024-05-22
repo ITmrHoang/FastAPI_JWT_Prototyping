@@ -36,7 +36,76 @@ docker : docker-compose.yml
 
 ```
 
-## access to env
+# Docker 
+
+## Build docker
+```
+docker build -t visem-docker-deploy -f DockerfileDeploy . 
+```
+## export docker file
+```
+docker save -o <path for generated tar file> <image name>
+or
+docker save  <image name:version> > <path for generated tar file>.tar
+```
+
+
+## load docker file
+```
+docker load -i <path to image tar file>
+docker lo
+```
+
+## export docker contianer to new image name
+```
+docker commit <container_id> <new_image_name>
+
+docker save -o <file_name>.tar <new_image_name>
+```
+
+## push lên hub
+```
+docker logout
+docker login
+
+docker push myusername/mynewrepository:<latest>
+
+đẩy lên với tên khác cần tạo tang 
+docker tag image_mame:<latest> myusername/mynewrepository:latest
+```
+
+## Docker note
+
+### sử dụng ENTRYPOINT & CMD
+
+
+    ENTRYPOINT ["bash", "-c", "./entrypoint_be.sh"]
+    CMD ["dotnet", "API.VNCSGLOBAL.dll"]
+    
+trong truồng hợp này docker sẽ thực hiện câu lệnh như sau
+
+    bash -c ./entrypoint_be.sh dotnet API.VNCSGLOBAL.dll
+
+mà câu lệnh chúng ta cần là 
+
+    bash -c ./entrypoint_be.sh && dotnet API.VNCSGLOBAL.dll
+
+giải pháp 
+
+    ENTRYPOINT ["/usr/local/bin/entrypoint_be.sh"]
+    CMD ["dotnet", "API.VNCSGLOBAL.dll"] 
+
+    or    
+    
+    ENTRYPOINT / CMD ["bash", "-c", "./entrypoint_be.sh && dotnet API.VNCSGLOBAL.dll"]
+
+# Phím tắt vscode
+
+- chọn nhiều dòng bằng chuột:  alt+ shift + kéo chuột
+- con trỏ chuột vào cuối các từ: ctrl + D
+
+# python virtualenv
+# access to env
 
 `.\vsiem_env\Scripts\activate `
 
